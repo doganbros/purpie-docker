@@ -2,12 +2,14 @@ version: '3.3'
 
 services:
    purpie:
-    image: doganbros/test
+    image: doganbros/purpie
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     container_name: purpie
     volumes:
-      - ./docker/scripts/purpie/nginx/sites-available/default.conf:/etc/nginx/http.d/default.conf
+      - ./docker/nginx/templates/nginx-template.conf:/octopus/nginx-template.conf
       - ./docker/ssl:/etc/nginx/ssl
-      - ./.env:/octopus/.env
     environment:
       - HTTP_PROXY=http://docker.purpie.io
       - HTTPS_PROXY=https://docker.purpie.io

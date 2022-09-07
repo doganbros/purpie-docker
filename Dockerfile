@@ -12,11 +12,17 @@ RUN cd /octopus
 
 RUN npm i -g npm-run-all
 
+RUN npm i -g envsub
+
 RUN yarn
 
 RUN cd /octopus
 
-CMD yarn build && nginx && yarn server:start
+COPY .env .
+
+RUN yarn build
+
+CMD envsub --env-file .env nginx-template.conf /etc/nginx/http.d/default.conf && nginx && yarn server:start
 
 #CMD ["yarn", "build"]
 
