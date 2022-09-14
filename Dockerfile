@@ -23,7 +23,3 @@ COPY .env .
 RUN yarn build
 
 CMD envsub --env-file .env nginx-template.conf /etc/nginx/http.d/default.conf && nginx && yarn server:start
-
-#CMD ["yarn", "build"]
-
-#CMD ["yarn", "server:start"]
