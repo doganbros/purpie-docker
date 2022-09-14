@@ -4,7 +4,7 @@ RUN apk update && apk upgrade && \
     apk add --no-cache bash git && \
     apk add nginx
 
-RUN git clone https://DoganbrosAdmin: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@github.com/doganbros/octopus.git
+RUN git -b develop clone https://DoganbrosAdmin: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@github.com/doganbros/octopus.git
 
 WORKDIR octopus
 
