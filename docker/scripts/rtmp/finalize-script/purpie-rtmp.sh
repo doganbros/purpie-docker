@@ -15,9 +15,9 @@ VIDEO_ID=$3
 FILE_ID=$VIDEO_ID
 FILENAME=$4
 FINAL_STATUS_CODE=0
-echo "#################################### $DATE --- Reporting Event to Octopus #########################################################" >> /tmp/octopus-rtmp.log
-echo "1: $1 - 2: $2 - 3:$3 - 4: $4"  >> /tmp/octopus-rtmp.log
-echo "$DATE --- Event Type: $EVENT_TYPE - User ID: $USER_ID - Video ID: $VIDEO_ID" >> /tmp/octopus-rtmp.log
+echo "#################################### $DATE --- Reporting Event to Purpie #########################################################" >> /tmp/purpie-rtmp.log
+echo "1: $1 - 2: $2 - 3:$3 - 4: $4"  >> /tmp/purpie-rtmp.log
+echo "$DATE --- Event Type: $EVENT_TYPE - User ID: $USER_ID - Video ID: $VIDEO_ID" >> /tmp/purpie-rtmp.log
 
 strpos() { 
   haystack=$1
@@ -31,11 +31,11 @@ pos=$(strpos $VIDEO_ID _)
 
 if [[ $pos -ge 0 ]]
 then
-    OCTOPUS_URL="https://${VIDEO_ID:$((pos + 1))}"
+    PURPIE_URL="https://${VIDEO_ID:$((pos + 1))}"
 fi
 
 
-echo "API_KEY: $OCTOPUS_API_KEY, URL=$OCTOPUS_URL" >> /tmp/octopus-rtmp.log
+echo "API_KEY: $PURPIE_API_KEY, URL=$PURPIE_URL" >> /tmp/purpie-rtmp.log
 
 
 upload() {
@@ -48,29 +48,29 @@ upload() {
   S3_EXIT_CODE=$(echo $?)
   if [[ $S3_EXIT_CODE == 0 ]] 
     then
-    echo "/tmp/recordings/$FILE_ID successfully synced with $S3_BUCKET_NAME/meeting-recordings/$FOLDER_NAME/" >> /tmp/octopus-rtmp.log
+    echo "/tmp/recordings/$FILE_ID successfully synced with $S3_BUCKET_NAME/meeting-recordings/$FOLDER_NAME/" >> /tmp/purpie-rtmp.log
     else
-    echo "/tmp/recordings/$FILE_ID failed to sync with $S3_BUCKET_NAME/meeting-recordings/$FOLDER_NAME/. Status Code: $S3_EXIT_CODE" >> /tmp/octopus-rtmp.log
+    echo "/tmp/recordings/$FILE_ID failed to sync with $S3_BUCKET_NAME/meeting-recordings/$FOLDER_NAME/. Status Code: $S3_EXIT_CODE" >> /tmp/purpie-rtmp.log
   fi
 }
 
 auth() {
   echo "$DATE - Authentication Token Expired. Attempting to Use Refresh Token."
-  RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -d '{"refreshToken": "'"$REFRESH_TOKEN"'"}' -k ${OCTOPUS_URL}/v1/auth/client/refresh-token)
+  RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -d '{"refreshToken": "'"$REFRESH_TOKEN"'"}' -k ${PURPIE_URL}/v1/auth/client/refresh-token)
   AUTH_STATUS_CODE=$(echo ${RESPONSE} | jq -r '.statusCode')
   if [[ ${AUTH_STATUS_CODE} == 200 ]]; then
-    echo "$DATE - Auth token successfully renewed" >> /tmp/octopus-rtmp.log
+    echo "$DATE - Auth token successfully renewed" >> /tmp/purpie-rtmp.log
   elif [[ ${AUTH_STATUS_CODE} == 401 || ${AUTH_STATUS_CODE} == 403 || ${AUTH_STATUS_CODE} == 400 ]]; then
-    echo "$DATE - Refresh Token has expired. Re-authing to Octopus..." >> /tmp/octopus-rtmp.log
-    RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -d '{"apiKey": "'"$OCTOPUS_API_KEY"'", "apiSecret": "'"$OCTOPUS_API_SECRET"'"}' -k ${OCTOPUS_URL}/v1/auth/client/login)
+    echo "$DATE - Refresh Token has expired. Re-authing to Purpie..." >> /tmp/purpie-rtmp.log
+    RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -d '{"apiKey": "'"$PURPIE_API_KEY"'", "apiSecret": "'"$PURPIE_API_SECRET"'"}' -k ${PURPIE_URL}/v1/auth/client/login)
     LOGIN_RETURN_CODE=$(echo ${RESPONSE} | jq -r '.statusCode')
     if [[ ${LOGIN_RETURN_CODE} == 200 ]]; then
-      echo "$DATE - Successfully logged into Octopus" >> /tmp/octopus-rtmp.log
+      echo "$DATE - Successfully logged into Purpie" >> /tmp/purpie-rtmp.log
     else
-      echo "$DATE - Error while re-auth. Returned: $LOGIN_RETURN_CODE"  >> /tmp/octopus-rtmp.log
+      echo "$DATE - Error while re-auth. Returned: $LOGIN_RETURN_CODE"  >> /tmp/purpie-rtmp.log
     fi
   else
-    echo "$DATE - Authentication failed with the status code: $AUTH_STATUS_CODE." >> /tmp/octopus-rtmp.log
+    echo "$DATE - Authentication failed with the status code: $AUTH_STATUS_CODE." >> /tmp/purpie-rtmp.log
   fi
   AUTH_TOKEN=$(echo ${RESPONSE} | jq -r '.accessToken')
   REFRESH_TOKEN=$(echo ${RESPONSE} | jq -r '.refreshToken')
@@ -78,8 +78,8 @@ auth() {
   echo "AUTH_TOKEN=$AUTH_TOKEN" >/tmp/token.txt
   echo "REFRESH_TOKEN=$REFRESH_TOKEN" >>/tmp/token.txt
   #Logging new tokens
-  echo "$DATE - Auth Token: $AUTH_TOKEN" >> /tmp/octopus-rtmp.log
-  echo "$DATE - Refresh Token: $REFRESH_TOKEN" >> /tmp/octopus-rtmp.log
+  echo "$DATE - Auth Token: $AUTH_TOKEN" >> /tmp/purpie-rtmp.log
+  echo "$DATE - Refresh Token: $REFRESH_TOKEN" >> /tmp/purpie-rtmp.log
 }
 
 send_event() {
@@ -87,25 +87,25 @@ send_event() {
   if [[ $EVENT_TYPE == record_done ]]
     then
     upload
-    echo "$DATE - Sending Recording Event: id: $FILE_ID and filename is: $FILENAME" >> /tmp/octopus-rtmp.log
+    echo "$DATE - Sending Recording Event: id: $FILE_ID and filename is: $FILENAME" >> /tmp/purpie-rtmp.log
     RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -H "Authorization: $HEADER" -d '{"id": "'"$FILE_ID"'", "type": "meeting-recording", "fileName": "'"$FILENAME"'"}' -k ${OCTOPUS_URL}/v1/video/client/feedback)
   else
-    echo "$DATE - Sending Streaming Event: slug: $VIDEO_ID and userID is: $USER_ID" >> /tmp/octopus-rtmp.log
+    echo "$DATE - Sending Streaming Event: slug: $VIDEO_ID and userID is: $USER_ID" >> /tmp/purpie-rtmp.log
     RESPONSE=$(curl --silent -X POST -H "Content-Type: application/json" -H "Authorization: $HEADER" -d '{"event": "'"$EVENT_TYPE"'", "mediaType": "video", "slug": "'"$VIDEO_ID"'", "userId": '$USER_ID'}' -k ${OCTOPUS_URL}/v1/stream/client/event)
   fi
   SEND_EVENT_RETURN_CODE=$(echo ${RESPONSE} | jq -r '.statusCode')
   if [[ $RESPONSE == OK || $RESPONSE == Created ]]
    then
-    echo "$DATE - Event successfully sent to Octopus with response: $SEND_EVENT_RETURN_CODE" >> /tmp/octopus-rtmp.log
+    echo "$DATE - Event successfully sent to Purpie with response: $SEND_EVENT_RETURN_CODE" >> /tmp/purpie-rtmp.log
   else
     if [[ $NUMBER_OF_TRIES -lt $MAX_EVENT_TRIES ]]
      then
       NUMBER_OF_TRIES=$((NUMBER_OF_TRIES+1))
-      echo "$DATE - Error while sending event. Retuned code: ${SEND_EVENT_RETURN_CODE}. Num of tries: $NUMBER_OF_TRIES." >> /tmp/octopus-rtmp.log
+      echo "$DATE - Error while sending event. Retuned code: ${SEND_EVENT_RETURN_CODE}. Num of tries: $NUMBER_OF_TRIES." >> /tmp/purpie-rtmp.log
       auth
       send_event      
     else
-      echo "$DATE - Error while sending event after trying $NUMBER_OF_TRIES times. Retuned code: ${SEND_EVENT_RETURN_CODE}" >> /tmp/octopus-rtmp.log
+      echo "$DATE - Error while sending event after trying $NUMBER_OF_TRIES times. Retuned code: ${SEND_EVENT_RETURN_CODE}" >> /tmp/purpie-rtmp.log
     fi
   fi
 }
